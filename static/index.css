@@ -1,0 +1,33 @@
+.container {
+    display: flex;
+    flex-direction: row;
+    height: 80%;
+}
+
+.content {
+    display: flex;
+    flex-direction: column;
+    width: 70%;
+    background: bisque;
+    padding-left: 5%;
+}
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    width: 20%;
+    text-align: right;
+    padding-right: 10%;
+    background: cadetblue;
+}
+/*aside {*/
+/*    text-align: left;*/
+/*    width: 29%;*/
+/*    height: 100%;*/
+/*    background: cadetblue;*/
+/*}*/
+/*section {*/
+/*    width: 69%;*/
+/*    text-align: right;*/
+/*    background: bisque;*/
+/*}*/

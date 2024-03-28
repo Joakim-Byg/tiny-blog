@@ -1,11 +1,11 @@
 
-class MyTag implements IComponent{
+class MyTag extends AComponent{
     message:string;
 
     public initiate(element: HTMLElement) {
         this.message = element.attributes.getNamedItem("message").value;
         element.insertAdjacentHTML("afterend", this.render());
-        element.remove();
+        this.registerForCleanUp(element);
     }
 
     public render() {

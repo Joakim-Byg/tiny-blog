@@ -1,4 +1,4 @@
-# A tiny framework for simple web-sites
+# A tiny blog from the tiny web framework
 I wanted to make a small site for technical blog-posts etc.
 I sought up the most contemporary web-stack of 2023-24, and found the following:
 [What is the ideal Tech stack to build a website in 2024?](https://dev.to/jakemackie/web-development-in-2024-29d6)
