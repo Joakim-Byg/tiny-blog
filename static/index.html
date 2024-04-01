@@ -5,7 +5,10 @@
     <title>Tiny blog</title>
     <link rel="stylesheet" href="index.css">
     <script src="js/ts/dist/tiny-fw.js"></script>
+    <script src="js/ts/dist/drawdown/drawdown.js"></script>
     <script src="js/ts/dist/components/my-tag.js"></script>
+    <script src="js/ts/dist/tiny-blog-module.js"></script>
+    <script src="js/ts/dist/wireup.js"></script>
 </head>
 <body>
     <nav>navigation goes here</nav>
@@ -14,10 +17,10 @@
         <div class="panel">
             <my-tag message="Entry 1"></my-tag>
             <my-tag message="Entry 2"></my-tag>
-            <my-tag message="Entry 3"></my-tag>
+<!--            <my-tag message="Entry 3"></my-tag>-->
         </div>
         <div class="content">
-            <my-tag message="Section 1"></my-tag>
+            <md source="/static/posts/test.md"></md>
         </div>
     </div>
     <footer>Footer visible</footer>

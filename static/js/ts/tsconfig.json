@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "outDir": "dist",
-    "lib": [ "ES2023", "dom" ]
+    "lib": [ "ES2023", "dom" ],
+    "allowJs": true
   }
 }

@@ -12,3 +12,5 @@ class MyTag extends AComponent{
         return `<p>${this.message}</p>`;
     }
 }
+
+registerTag("my-tag", new MyTag());

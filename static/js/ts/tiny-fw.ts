@@ -2,14 +2,10 @@
 const tfwTags = new Map<string, IComponent>();
 const renderCleanups = new Array<HTMLElement>();
 
-function initTags() {
-    tfwTags.set("my-tag", new MyTag());
-}
+
 function renderTags() {
     for (let key of Array.from(tfwTags.keys())) {
-        console.log(`went here: ${key}`);
         let elements = Array.from(document.getElementsByTagName(key));
-        console.log(`Element size: ${elements.length}`);
         for (let elem of elements) {
             let _tag = tfwTags.get(key);
             _tag.initiate(elem as HTMLElement);
@@ -21,6 +17,10 @@ function cleanupElements() {
     for (let elem of renderCleanups) {
         elem.remove();
     }
+}
+
+function registerTag(tag: string, component:AComponent) {
+    tfwTags.set(tag, component);
 }
 
 interface IComponent {
@@ -36,13 +36,5 @@ abstract class AComponent implements IComponent {
         renderCleanups.push(element);
     }
 
-}
-
-document.onreadystatechange = function () {
-    if (document.readyState === 'complete') {
-        initTags();
-        renderTags();
-        cleanupElements();
-    }
 }
 
