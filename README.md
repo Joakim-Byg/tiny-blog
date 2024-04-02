@@ -27,7 +27,57 @@ which transpiles ts files from the root of where the `tsconfig.json`-file is pla
 
 The resulting js-files are located in the `static\js\ts\dist` folder, which the html should refer to.  
 
-That is basically it for now.
+## Serving the web-content
+__**Depends on go-lang**__ (install go-lang)
 
+A minimalistic go-lang application has been created for serving the files and the metric endpoint.
+
+To build the golang http server do: 
+```shell
+go mod tidy
+go build -o tiny-blog
+./tiny-blog
+```
+
+# Container
+The `Dockerfile` includes two stages [`build`,`app`], where `build` makes the golang-binaries and `app` is the final 
+image, where users, static content and binaries are copied to.
+
+Build and run as follows
+```shell
+docker build . --build-arg="BUILDPLATFORM=linux/arm64" \
+  --build-arg="TARGETARCH=arm64" \
+  -t favorite.registry.com/tiny-blog:0.1.1
+
+docker run -it --publish=3000:3000 \                                                                                  
+   favorite.registry.com/tiny-blog:0.1.1
+```
+
+Here is how to build containers for [multiple platforms](https://docs.docker.com/build/building/multi-platform/). 
+
+## Metrics
+
+The simplest of prometheus metrics are used: https://prometheus.io/docs/guides/go-application/
+```shell
+go get github.com/prometheus/client_golang/prometheus/promhttp
+```
+together with:
+```go
+import (
+...
+"github.com/prometheus/client_golang/prometheus/promhttp"
+)
+...
+mux.Handle("/metrics", promhttp.Handler())
+```
+
+# Acknowledgments
+## Style
+I am currently borrowing styles from: https://smartblogger.com/blog-design/ 
 ## The markdown feature
 Acknowledgements to [Adam Leggett](https://github.com/adamvleggett) - look to the Notes.md in the `drawdown` folder.
+## 404 folders
+Filtering out folders when serving static content: https://www.alexedwards.net/blog/disable-http-fileserver-directory-listings
+## favicon.ico
+Free and royalty-free:
+https://www.flaticon.com/free-icon/favicon_7710476

@@ -1,18 +1,23 @@
 package main
 
 import (
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"log"
 	"net/http"
 	"strings"
 )
 
+// inspired by https://www.alexedwards.net/blog/disable-http-fileserver-directory-listings
+
 func main() {
 	mux := http.NewServeMux()
-	fileServer := http.FileServer(http.Dir("./static"))
-	mux.Handle("/static/main.html", http.StripPrefix("/static", neuter(fileServer)))
-	mux.Handle("/static/main.css", http.StripPrefix("/static", neuter(fileServer)))
-	mux.Handle("/static/js/ts/dist/", http.StripPrefix("/static", neuter(fileServer)))
-	mux.Handle("/static/posts/", http.StripPrefix("/static", neuter(fileServer)))
+	fileServer := http.FileServer(http.Dir("."))
+	mux.Handle("/favicon.ico", neuter(fileServer))
+	mux.Handle("/static/main.html", neuter(fileServer))
+	mux.Handle("/static/main.css", neuter(fileServer))
+	mux.Handle("/static/js/ts/dist/", neuter(fileServer))
+	mux.Handle("/static/posts/", neuter(fileServer))
+	mux.Handle("/metrics", promhttp.Handler())
 
 	log.Print("Listening on :3000...")
 	err := http.ListenAndServe(":3000", mux)
@@ -27,7 +32,6 @@ func neuter(next http.Handler) http.Handler {
 			http.NotFound(w, r)
 			return
 		}
-
 		next.ServeHTTP(w, r)
 	})
 }
