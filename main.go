@@ -1,26 +1,73 @@
 package main
 
 import (
+	"fmt"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/spf13/viper"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
+const ServiceConfKey = "SERVICE_CONFIG"
+
+//const AppConfigKey = "APP_CONFIG"
+
+func initConf() {
+	serviceConfPath := os.Getenv(ServiceConfKey)
+	log.Printf("Reading service config from: '%v'", serviceConfPath)
+	serviceConfDir, serviceConfFile := filepath.Split(serviceConfPath)
+
+	slicedFile := strings.Split(serviceConfFile, ".")
+	if len(slicedFile) > 0 {
+		slicedFile = slicedFile[:len(slicedFile)-1]
+	}
+	serviceConfFileName := strings.Join(slicedFile, ".")
+	log.Printf("Setting config-name: %v", serviceConfFileName)
+	viper.SetConfigName(serviceConfFileName)
+	serviceConfDir = strings.Trim(serviceConfDir, string(filepath.Separator))
+	log.Printf("Setting config path: %v", serviceConfDir)
+	viper.AddConfigPath(serviceConfDir)
+	viper.ReadInConfig()
+	viper.WatchConfig()
+	//appConfigPath := os.Getenv(AppConfigKey)
+	//if appConfigPath != "" {
+	//	//viper.AddConfigPath(appConfigPath)
+	//}
+}
+
 // inspired by https://www.alexedwards.net/blog/disable-http-fileserver-directory-listings
+// try having a look at Gin-gonik
 
 func main() {
+	if os.Getenv(ServiceConfKey) == "" {
+		log.Print("The env-var 'SERVICE_CONFIG' must be defined. Which should at minimum contain configs for 'port' and 'static-serve-path'")
+		os.Exit(0)
+	}
+	dir, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Working dir is: %v", dir)
+	initConf()
+
 	mux := http.NewServeMux()
-	fileServer := http.FileServer(http.Dir("."))
+	staticServePath := viper.GetString("static-serve-path")
+	log.Printf("serving static content from '%v'", staticServePath)
+	fileServer := http.FileServer(http.Dir(staticServePath))
 	mux.Handle("/favicon.ico", neuter(fileServer))
-	mux.Handle("/static/main.html", neuter(fileServer))
-	mux.Handle("/static/main.css", neuter(fileServer))
-	mux.Handle("/static/js/ts/dist/", neuter(fileServer))
-	mux.Handle("/static/posts/", neuter(fileServer))
+	mux.Handle("/main.html", neuter(fileServer))
+	mux.Handle("/main.css", neuter(fileServer))
+	mux.Handle("/js/ts/dist/", neuter(fileServer))
+	mux.Handle("/posts/", neuter(fileServer))
 	mux.Handle("/metrics", promhttp.Handler())
 
-	log.Print("Listening on :3000...")
-	err := http.ListenAndServe(":3000", mux)
+	portStr := fmt.Sprintf(":%v", viper.GetString("port"))
+	log.Printf("Listening on %v...", portStr)
+	err = http.ListenAndServe(portStr, mux)
+
 	if err != nil {
 		log.Fatal(err)
 	}

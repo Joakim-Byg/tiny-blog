@@ -22,9 +22,10 @@ COPY --from=build /etc/group /etc/group
 
 # Copy app binaries and static web-content
 COPY --chown=appuser:appgroup --from=build /build/bin /app
-COPY --chown=appuser:appgroup static /app/static
-COPY --chown=appuser:appgroup favicon.ico /app/
+COPY --chown=appuser:appgroup configs /app/configs
+COPY --chown=appuser:appgroup web /app/web
 
 WORKDIR "/app"
+ENV SERVICE_CONFIG=./configs/default-service-config.yaml
 USER appuser:appgroup
 ENTRYPOINT ["./tiny-blog"]

@@ -19,21 +19,25 @@ Then install typescript globally:
 ```shell
 npm install typescript -g
 ```
-after that, the command `tsc <file.ts>` will transpile a single ts-file to plain js, or as I use do:
+after that, the command `tsc <file.ts>` will transpile a single ts-file to plain js, or as I do:
 ```shell
 $\[checkout]\static\js\ts\> npx tsc
 ``` 
 which transpiles ts files from the root of where the `tsconfig.json`-file is placed (in this case `\static\js\ts\`).
 
-The resulting js-files are located in the `static\js\ts\dist` folder, which the html should refer to.  
+The resulting js-files are located in the `static\js\ts\dist` folder, which the html should refer to 
+(when including `<script src="js/ts/dist/tiny-fw.js"></script>`-tags).  
 
 ## Serving the web-content
 __**Depends on go-lang**__ (install go-lang)
 
 A minimalistic go-lang application has been created for serving the files and the metric endpoint.
 
-To build the golang http server do: 
+To build and run the go-lang http server do: 
 ```shell
+# Env-var directing tiny-blog to the config file that configures the location of static web content and servlet port
+# (The content of this config is not reloaded at run-time)
+export SERVICE_CONFIG=./configs/default-service-config.yaml
 go mod tidy
 go build -o tiny-blog
 ./tiny-blog
@@ -47,10 +51,10 @@ Build and run as follows
 ```shell
 docker build . --build-arg="BUILDPLATFORM=linux/arm64" \
   --build-arg="TARGETARCH=arm64" \
-  -t favorite.registry.com/tiny-blog:0.1.1
+  -t favorite.registry.com/tiny-blog:0.2.0
 
 docker run -it --publish=3000:3000 \                                                                                  
-   favorite.registry.com/tiny-blog:0.1.1
+   favorite.registry.com/tiny-blog:0.2.0
 ```
 
 Here is how to build containers for [multiple platforms](https://docs.docker.com/build/building/multi-platform/). 
@@ -70,6 +74,18 @@ import (
 ...
 mux.Handle("/metrics", promhttp.Handler())
 ```
+
+## Traces with open telemetry
+
+```shell
+go get go.opentelemetry.io/otel
+go get go.opentelemetry.io/otel/trace
+go get go.opentelemetry.io/otel/sdk
+go get go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc
+```
+together with:
+
+
 
 # Acknowledgments
 ## Style
