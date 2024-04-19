@@ -1,14 +1,22 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/riandyrn/otelchi"
 	"github.com/spf13/viper"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"tiny-blog/internal"
+	"tiny-blog/web/app"
 )
 
 const ServiceConfKey = "SERVICE_CONFIG"
@@ -27,7 +35,7 @@ func initConf() {
 	serviceConfFileName := strings.Join(slicedFile, ".")
 	log.Printf("Setting config-name: %v", serviceConfFileName)
 	viper.SetConfigName(serviceConfFileName)
-	serviceConfDir = strings.Trim(serviceConfDir, string(filepath.Separator))
+	serviceConfDir = strings.TrimRight(serviceConfDir, string(filepath.Separator))
 	log.Printf("Setting config path: %v", serviceConfDir)
 	viper.AddConfigPath(serviceConfDir)
 	viper.ReadInConfig()
@@ -42,6 +50,11 @@ func initConf() {
 // try having a look at Gin-gonik
 
 func main() {
+
+	// Handle SIGINT (CTRL+C) gracefully.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
 	if os.Getenv(ServiceConfKey) == "" {
 		log.Print("The env-var 'SERVICE_CONFIG' must be defined. Which should at minimum contain configs for 'port' and 'static-serve-path'")
 		os.Exit(0)
@@ -53,23 +66,68 @@ func main() {
 	log.Printf("Working dir is: %v", dir)
 	initConf()
 
-	mux := http.NewServeMux()
-	staticServePath := viper.GetString("static-serve-path")
-	log.Printf("serving static content from '%v'", staticServePath)
-	fileServer := http.FileServer(http.Dir(staticServePath))
-	mux.Handle("/favicon.ico", neuter(fileServer))
-	mux.Handle("/main.html", neuter(fileServer))
-	mux.Handle("/main.css", neuter(fileServer))
-	mux.Handle("/js/ts/dist/", neuter(fileServer))
-	mux.Handle("/posts/", neuter(fileServer))
-	mux.Handle("/metrics", promhttp.Handler())
+	var (
+		otelColHost = viper.GetString("otel.collector.host")
+		otelColPort = viper.GetString("otel.collector.port")
+		otelAppName = viper.GetString("otel.app.name")
+	)
+	var otelEnabled = !(otelColHost == "" || otelColPort == "" || otelAppName == "")
+	if !otelEnabled {
+		log.Printf("OpenTelemetry config not correctly setup; values are: {\"otel.collector.host\" = \"%v\", "+
+			"\"otel.collector.port\" = \"%v\", \"otel.app.name\" = \"%v\"}",
+			otelColHost, otelColPort, otelAppName)
+	} else {
 
-	portStr := fmt.Sprintf(":%v", viper.GetString("port"))
+		// Set up OpenTelemetry.
+		otelShutdown, err := internal.SetupOTelSDK(ctx,
+			viper.GetString("otel.collector.host"),
+			viper.GetString("otel.collector.port"),
+			viper.GetString("otel.app.name"),
+		)
+		if err != nil {
+			return
+		}
+		// Handle shutdown properly so nothing leaks.
+		defer func() {
+			err = errors.Join(err, otelShutdown(context.Background()))
+		}()
+	}
+
+	handler := newHttpHandler(viper.GetString("web.static-content-path"), otelEnabled)
+
+	portStr := fmt.Sprintf(":%v", viper.GetString("web.host.port"))
 	log.Printf("Listening on %v...", portStr)
-	err = http.ListenAndServe(portStr, mux)
-
+	err = http.ListenAndServe(portStr, handler)
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+func newHttpHandler(staticServePath string, otelEnabled bool) http.Handler {
+
+	router := chi.NewRouter()
+
+	router.Use(otelchi.Middleware("tiny-blog", otelchi.WithChiRoutes(router)))
+	router.Handle("/metrics", promhttp.Handler())
+
+	log.Printf("serving static content from '%v'", staticServePath)
+	fileServer := http.FileServer(http.Dir(staticServePath))
+	filePaths := []string{"/favicon.ico", "/main.html", "/main.css", "/js/ts/dist/*", "/posts/*"}
+	for i := 0; i < len(filePaths); i++ {
+		if otelEnabled {
+			router.Handle(filePaths[i], otelhttp.WithRouteTag(filePaths[i], neuter(fileServer)))
+		} else {
+			router.Handle(filePaths[i], neuter(fileServer))
+		}
+	}
+	if otelEnabled {
+		router.Handle("/generate-trace", otelhttp.WithRouteTag("generate-trace", http.HandlerFunc(app.GenerateTrace)))
+		router.Handle("/add-trace-depth/{depth}", otelhttp.WithRouteTag("generate-trace", http.HandlerFunc(app.AddDepth)))
+		return otelhttp.NewHandler(router, "server", otelhttp.WithMessageEvents(otelhttp.ReadEvents, otelhttp.WriteEvents))
+	} else {
+		router.HandleFunc("/generate-trace", app.GenerateTrace)
+		router.HandleFunc("/add-trace-depth/{depth}", app.AddDepth)
+		return router
 	}
 }
 
@@ -82,32 +140,3 @@ func neuter(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
-
-//https://stackoverflow.com/questions/6564558/wildcards-in-the-pattern-for-http-handlefunc
-//type route struct {
-//	pattern *regexp.Regexp
-//	handler http.Handler
-//}
-//
-//type RegexpHandler struct {
-//	routes []*route
-//}
-//
-//func (h *RegexpHandler) Handler(pattern *regexp.Regexp, handler http.Handler) {
-//	h.routes = append(h.routes, &route{pattern, handler})
-//}
-//
-//func (h *RegexpHandler) HandleFunc(pattern *regexp.Regexp, handler func(http.ResponseWriter, *http.Request)) {
-//	h.routes = append(h.routes, &route{pattern, http.HandlerFunc(handler)})
-//}
-//
-//func (h *RegexpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-//	for _, route := range h.routes {
-//		if route.pattern.MatchString(r.URL.Path) {
-//			route.handler.ServeHTTP(w, r)
-//			return
-//		}
-//	}
-//	// no pattern matched; send 404 response
-//	http.NotFound(w, r)
-//}

@@ -53,7 +53,7 @@ docker build . --build-arg="BUILDPLATFORM=linux/arm64" \
   --build-arg="TARGETARCH=arm64" \
   -t favorite.registry.com/tiny-blog:0.2.0
 
-docker run -it --publish=3000:3000 \                                                                                  
+docker run -it --publish=8080:8080 \                                                                                  
    favorite.registry.com/tiny-blog:0.2.0
 ```
 

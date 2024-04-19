@@ -1,2 +1,10 @@
-port: "8080"
-static-serve-path: "web/static"
+otel:
+  app:
+    name: "go-prom-app"
+  collector:
+    host: "localhost"
+#    port: "4317"
+web:
+  host:
+    port: "8181"
+  static-content-path: "web/static"

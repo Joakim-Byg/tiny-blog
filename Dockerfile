@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM} golang:1-alpine3.19 as build
+FROM --platform=${BUILDPLATFORM} golang:1.22-alpine3.19 as build
 
 ARG BUILDPLATFORM=linux/arm64
 ARG TARGETARCH=arm64
@@ -6,10 +6,12 @@ ARG TARGETARCH=arm64
 RUN addgroup --gid 10001 -S appgroup && adduser --uid 10001 -S appuser -G appgroup -s "/sbin/nologin" -H
 
 WORKDIR /build
+COPY internal internal
+COPY web/app web/app
 COPY main.go .
 COPY go.mod .
 RUN go mod tidy
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -o ./bin/
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o ./bin/
 
 FROM --platform=${TARGETPLATFORM:-linux/arm64} scratch as app
 
